@@ -1,0 +1,227 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ------------------------------------------------------------------ tokens */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 39% 11%;
+
+    --surface: 0 0% 100%;
+    --surface-raised: 0 0% 100%;
+    --surface-sunken: 220 20% 97%;
+
+    --muted: 220 20% 96%;
+    --muted-foreground: 220 9% 46%;
+    --subtle-foreground: 220 9% 60%;
+
+    --border: 220 16% 90%;
+    --input: 220 16% 88%;
+    --ring: 243 75% 59%;
+
+    --primary: 243 75% 59%;
+    --primary-hover: 244 62% 51%;
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 243 80% 96%;
+
+    --success: 160 84% 39%;
+    --success-soft: 158 70% 95%;
+    --warning: 38 92% 50%;
+    --warning-soft: 45 93% 95%;
+    --info: 217 91% 60%;
+    --info-soft: 214 95% 96%;
+    --danger: 0 84% 60%;
+    --danger-soft: 0 86% 97%;
+  }
+
+  .dark {
+    --background: 222 25% 5%;
+    --foreground: 213 27% 90%;
+
+    --surface: 220 21% 9%;
+    --surface-raised: 220 19% 12%;
+    --surface-sunken: 222 24% 7%;
+
+    --muted: 220 18% 14%;
+    --muted-foreground: 220 9% 62%;
+    --subtle-foreground: 220 9% 50%;
+
+    --border: 220 16% 17%;
+    --input: 220 16% 20%;
+    --ring: 243 75% 66%;
+
+    --primary: 243 75% 66%;
+    --primary-hover: 243 80% 72%;
+    --primary-foreground: 222 40% 8%;
+    --primary-soft: 243 45% 18%;
+
+    --success: 158 64% 48%;
+    --success-soft: 160 45% 15%;
+    --warning: 38 92% 56%;
+    --warning-soft: 35 50% 16%;
+    --info: 213 94% 68%;
+    --info-soft: 215 50% 18%;
+    --danger: 0 84% 66%;
+    --danger-soft: 0 45% 18%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.22);
+  }
+
+  /* 细滚动条，避免 macOS 常显滚动条破坏卡片留白 */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+    background-clip: content-box;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+/* -------------------------------------------------------------- components */
+@layer components {
+  /* 极细的顶部分隔渐变，用在侧栏与内容区之间 */
+  .hairline-r {
+    box-shadow: inset -1px 0 0 0 hsl(var(--border));
+  }
+
+  .card-surface {
+    @apply rounded-card border border-border bg-surface shadow-card;
+  }
+
+  /* 网格背景，用在空态和欢迎区 */
+  .grid-bg {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 20%, transparent 80%);
+  }
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-control bg-muted;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.05),
+      transparent
+    );
+  }
+}
+
+/* ------------------------------------------------------------ CodeMirror */
+/* 让编辑器与站点排版完全同源，而不是带一套自己的字体和留白 */
+.cm-editor {
+  height: 100%;
+  background: transparent !important;
+  font-size: 13.5px;
+  line-height: 1.75;
+}
+.cm-editor.cm-focused {
+  outline: none !important;
+}
+.cm-scroller {
+  font-family: theme('fontFamily.mono') !important;
+  padding: 14px 16px;
+  overflow-y: auto;
+}
+.cm-content {
+  caret-color: hsl(var(--primary));
+  padding: 0 !important;
+}
+.cm-line {
+  padding: 0 !important;
+}
+.cm-gutters {
+  display: none !important;
+}
+.cm-activeLine {
+  background: hsl(var(--primary) / 0.045) !important;
+  border-radius: 4px;
+}
+.cm-selectionBackground,
+.cm-editor .cm-selectionBackground,
+.cm-editor.cm-focused .cm-selectionBackground {
+  background: hsl(var(--primary) / 0.18) !important;
+}
+.cm-cursor,
+.cm-dropCursor {
+  border-left-color: hsl(var(--primary)) !important;
+  border-left-width: 2px !important;
+}
+.cm-placeholder {
+  color: hsl(var(--subtle-foreground));
+  font-style: normal;
+}
+.cm-tooltip-autocomplete {
+  @apply rounded-control border border-border bg-surface-raised shadow-pop;
+  padding: 4px !important;
+}
+.cm-tooltip-autocomplete > ul > li {
+  @apply rounded-[5px] px-2 py-1.5 text-[13px];
+  font-family: theme('fontFamily.sans') !important;
+}
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+/* -------------------------------------------------------------- code */
+.prose-report pre {
+  @apply rounded-control border border-border bg-surface-sunken;
+}
+
+/* 打印：只留正文 */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

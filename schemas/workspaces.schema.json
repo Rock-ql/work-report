@@ -1,0 +1,104 @@
+{
+  "$ref": "#/definitions/workspacesFileSchema",
+  "definitions": {
+    "workspacesFileSchema": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "workspaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "工作区唯一 ID，新增时由前端生成，AI 不得修改"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40,
+                "description": "工作区展示名"
+              },
+              "moduleTag": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20,
+                "description": "报告正文中【xxx】使用的模块标签，AI 只能从这里取值"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "description": "git 仓库在本机的绝对路径"
+              },
+              "authors": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "git 作者邮箱/姓名过滤，空数组表示回退到 settings.defaultAuthors"
+              },
+              "branches": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "限定统计的分支，空数组表示所有分支"
+              },
+              "enabled": {
+                "type": "boolean",
+                "default": true,
+                "description": "关闭后不参与提交提取"
+              },
+              "color": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$",
+                "default": "#6366f1"
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 200,
+                "default": ""
+              },
+              "order": {
+                "type": "integer",
+                "default": 0,
+                "description": "展示与报告中模块出现顺序"
+              },
+              "createdAt": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "updatedAt": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "moduleTag",
+              "path",
+              "createdAt",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          },
+          "default": []
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "data/workspaces.json 的结构"
+}

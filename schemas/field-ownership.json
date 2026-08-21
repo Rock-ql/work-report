@@ -1,0 +1,64 @@
+{
+  "$comment": "字段归属：AI 只能写 owner=ai 的字段；owner=manual 的字段由 report.mjs 从磁盘继承，AI 写不进去。",
+  "statusEnum": [
+    "已完成",
+    "开发中",
+    "进行中",
+    "联调中",
+    "待测试",
+    "待上线",
+    "已上线"
+  ],
+  "daily": [
+    {
+      "field": "sections.todayCompleted",
+      "label": "今日工作完成情况",
+      "owner": "ai",
+      "patchKey": "todayCompleted"
+    },
+    {
+      "field": "sections.tomorrowPlan.product",
+      "label": "接下来一天的产品规划工作",
+      "owner": "manual",
+      "patchKey": null
+    },
+    {
+      "field": "sections.tomorrowPlan.dev",
+      "label": "接下来一天的开发工作",
+      "owner": "ai",
+      "patchKey": "tomorrowPlanDev"
+    },
+    {
+      "field": "sections.tomorrowPlan.backlog",
+      "label": "待完成的所有工作",
+      "owner": "manual",
+      "patchKey": null
+    },
+    {
+      "field": "sections.needHelp",
+      "label": "需要协助的事项",
+      "owner": "manual",
+      "patchKey": null
+    }
+  ],
+  "weekly": [
+    {
+      "field": "sections.weekCompleted",
+      "label": "本周工作完成情况",
+      "owner": "ai",
+      "patchKey": "weekCompleted"
+    },
+    {
+      "field": "sections.nextWeekPlan",
+      "label": "下周工作计划",
+      "owner": "manual",
+      "patchKey": null
+    },
+    {
+      "field": "sections.needHelp",
+      "label": "需要协助的事项",
+      "owner": "manual",
+      "patchKey": null
+    }
+  ]
+}

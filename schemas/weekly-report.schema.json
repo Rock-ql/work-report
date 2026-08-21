@@ -1,0 +1,206 @@
+{
+  "$ref": "#/definitions/weeklyReportSchema",
+  "definitions": {
+    "weeklyReportSchema": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "type": {
+          "type": "string",
+          "const": "weekly"
+        },
+        "week": {
+          "type": "string",
+          "pattern": "^\\d{4}-W\\d{2}$"
+        },
+        "weekStart": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "weekEnd": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "title": {
+          "type": "string",
+          "default": ""
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "final"
+          ],
+          "default": "draft"
+        },
+        "sections": {
+          "type": "object",
+          "properties": {
+            "weekCompleted": {
+              "type": "string",
+              "default": "",
+              "description": "【AI】本周工作完成情况"
+            },
+            "nextWeekPlan": {
+              "type": "string",
+              "default": "",
+              "description": "【人工】下周工作计划"
+            },
+            "needHelp": {
+              "type": "string",
+              "default": "",
+              "description": "【人工】需要协助的事项"
+            }
+          },
+          "additionalProperties": false
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "workspaceIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": []
+            },
+            "range": {
+              "type": "object",
+              "properties": {
+                "since": {
+                  "type": "string"
+                },
+                "until": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "since",
+                "until"
+              ],
+              "additionalProperties": false,
+              "default": {
+                "since": "",
+                "until": ""
+              }
+            },
+            "commits": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "workspaceId": {
+                    "type": "string"
+                  },
+                  "moduleTag": {
+                    "type": "string"
+                  },
+                  "repo": {
+                    "type": "string",
+                    "description": "工作区展示名"
+                  },
+                  "hash": {
+                    "type": "string",
+                    "description": "短 hash"
+                  },
+                  "subject": {
+                    "type": "string"
+                  },
+                  "authoredAt": {
+                    "type": "string"
+                  },
+                  "author": {
+                    "type": "string",
+                    "default": ""
+                  },
+                  "branch": {
+                    "type": "string",
+                    "default": ""
+                  },
+                  "files": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "insertions": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "deletions": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  }
+                },
+                "required": [
+                  "workspaceId",
+                  "moduleTag",
+                  "repo",
+                  "hash",
+                  "subject",
+                  "authoredAt"
+                ],
+                "additionalProperties": false
+              },
+              "default": []
+            },
+            "generatedBy": {
+              "type": "string",
+              "enum": [
+                "ai",
+                "manual"
+              ],
+              "default": "manual"
+            },
+            "generatedAt": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+            }
+          },
+          "additionalProperties": false,
+          "default": {
+            "workspaceIds": [],
+            "range": {
+              "since": "",
+              "until": ""
+            },
+            "commits": [],
+            "generatedBy": "manual"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "createdAt": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "updatedAt": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "type",
+        "week",
+        "weekStart",
+        "weekEnd",
+        "sections",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "周报文件 data/reports/weekly/YYYY-Www.json 的结构"
+}

@@ -1,0 +1,107 @@
+{
+  "$ref": "#/definitions/dailyPatchSchema",
+  "definitions": {
+    "dailyPatchSchema": {
+      "type": "object",
+      "properties": {
+        "todayCompleted": {
+          "type": "string"
+        },
+        "tomorrowPlanDev": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "commits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "workspaceId": {
+                "type": "string"
+              },
+              "moduleTag": {
+                "type": "string"
+              },
+              "repo": {
+                "type": "string",
+                "description": "工作区展示名"
+              },
+              "hash": {
+                "type": "string",
+                "description": "短 hash"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "authoredAt": {
+                "type": "string"
+              },
+              "author": {
+                "type": "string",
+                "default": ""
+              },
+              "branch": {
+                "type": "string",
+                "default": ""
+              },
+              "files": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0
+              },
+              "insertions": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0
+              },
+              "deletions": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0
+              }
+            },
+            "required": [
+              "workspaceId",
+              "moduleTag",
+              "repo",
+              "hash",
+              "subject",
+              "authoredAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "workspaceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "range": {
+          "type": "object",
+          "properties": {
+            "since": {
+              "type": "string"
+            },
+            "until": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "since",
+            "until"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "report.mjs write 接受的日报补丁（AI 只能写这些字段）"
+}
