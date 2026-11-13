@@ -6,3 +6,8 @@ dist
 tsconfig.tsbuildinfo
 .sandbox
 data/
+
+# 个人 OKR 原始文档（xlsx/docx，不入库）
+docs/ork/
+# pnpm 构建脚本授权占位文件，本地生成，不入库
+pnpm-workspace.yaml
