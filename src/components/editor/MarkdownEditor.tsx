@@ -10,7 +10,7 @@ import { Tip } from '@/components/ui/tooltip'
 import { cmHighlight, cmTheme } from './cm-theme'
 import { Toolbar } from './Toolbar'
 import { MarkdownPreview } from './Preview'
-import { sanitizePaste, toggleLinePrefix, toggleOrderedList, wrapInline, insertLink } from './commands'
+import { sanitizePaste, toggleLinePrefix, toggleOrderedList, wrapInline, insertLink, indentList } from './commands'
 
 export type EditorMode = 'edit' | 'split' | 'preview'
 
@@ -32,6 +32,8 @@ export function MarkdownEditor({
   toolbarExtra,
   compactToolbar,
   className,
+  ariaLabel,
+  responsiveSplit = false,
 }: {
   value: string
   onChange: (next: string) => void
@@ -44,6 +46,8 @@ export function MarkdownEditor({
   toolbarExtra?: React.ReactNode
   compactToolbar?: boolean
   className?: string
+  ariaLabel?: string
+  responsiveSplit?: boolean
 }) {
   const ref = React.useRef<ReactCodeMirrorRef>(null)
   const [view, setView] = React.useState<EditorView | null>(null)
@@ -68,6 +72,7 @@ export function MarkdownEditor({
       markdown({ base: markdownLanguage, addKeymap: true }),
       cmTheme,
       cmHighlight,
+      ...(ariaLabel ? [EditorView.contentAttributes.of({ 'aria-label': ariaLabel })] : []),
       EditorView.lineWrapping,
       autocompletion({ override: [tagCompletion], activateOnTyping: true, icons: false }),
       // Prec.highest 保证这些键位盖过 CodeMirror 默认绑定
@@ -79,6 +84,8 @@ export function MarkdownEditor({
           { key: 'Mod-k', run: (v) => (insertLink(v), true) },
           { key: 'Mod-Shift-l', run: (v) => (toggleLinePrefix(v, '- ', /^[-*+]\s+/), true) },
           { key: 'Mod-Shift-o', run: (v) => (toggleOrderedList(v), true) },
+          // 列表子项缩进：Tab 缩进到上一层列表项的正文列，Shift-Tab 反缩进
+          { key: 'Tab', run: (v) => indentList(v, 1), shift: (v) => indentList(v, -1) },
         ]),
       ),
       EditorView.domEventHandlers({
@@ -97,7 +104,7 @@ export function MarkdownEditor({
         },
       }),
     ],
-    [tagCompletion],
+    [tagCompletion, ariaLabel],
   )
 
   const stats = React.useMemo(() => {
@@ -140,7 +147,9 @@ export function MarkdownEditor({
       <div
         className={cn(
           'grid items-stretch',
-          showEditor && showPreview ? 'grid-cols-2 divide-x divide-border' : 'grid-cols-1',
+          showEditor && showPreview
+            ? responsiveSplit ? 'grid-cols-1 divide-y divide-border xl:grid-cols-2 xl:divide-x xl:divide-y-0' : 'grid-cols-2 divide-x divide-border'
+            : 'grid-cols-1',
         )}
       >
         {showEditor && (

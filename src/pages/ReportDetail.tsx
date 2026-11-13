@@ -74,6 +74,8 @@ export default function ReportDetail() {
   /** 磁盘基线：保存时带上做乐观锁 */
   const baseRef = React.useRef<string>('')
   const dirtyRef = React.useRef(false)
+  /** 每次本地改动 +1，用来判断保存回包到达时用户是否又在打字 */
+  const editSeqRef = React.useRef(0)
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const tags = React.useMemo(
@@ -124,30 +126,35 @@ export default function ReportDetail() {
     })
     if (!hit) return
 
-    if (dirtyRef.current) {
-      // 本地有未保存改动，不能静默覆盖，交给用户决定
-      void api.getReport(type, id).then((disk) => {
+    void api.getReport(type, id).then((disk) => {
+      // 磁盘上还是我们已知的那一版：这次事件只是自己保存产生的回声，
+      // 不该当成"被外部修改"来打扰用户
+      if (disk.updatedAt === baseRef.current) return
+      if (dirtyRef.current) {
+        // 本地有未保存改动，不能静默覆盖，交给用户决定
         setConflict({ disk, diskUpdatedAt: disk.updatedAt })
-      })
-    } else {
-      void api.getReport(type, id).then((disk) => {
+      } else {
         setReport(disk)
         baseRef.current = disk.updatedAt
         toast.success('已同步 AI 的最新内容')
-      })
-    }
+      }
+    })
   }, [lastChangedFiles, type, id])
 
   // ---------------------------------------------------------------- 保存
   const persist = React.useCallback(
     async (next: Report, force = false) => {
       setSaveState('saving')
+      const seq = editSeqRef.current
       try {
         const saved = await api.saveReport(next, force ? undefined : baseRef.current, force)
-        setReport(saved)
         baseRef.current = saved.updatedAt
-        dirtyRef.current = false
-        setSaveState('saved')
+        // 保存期间又打了字（seq 变了）就别回写 state，否则会把刚输入的内容冲掉
+        if (editSeqRef.current === seq) {
+          setReport(saved)
+          dirtyRef.current = false
+          setSaveState('saved')
+        }
         setSavedAt(formatTime(saved.updatedAt))
       } catch (e) {
         if (e instanceof ApiError && e.isConflict) {
@@ -167,6 +174,7 @@ export default function ReportDetail() {
   const scheduleSave = React.useCallback(
     (next: Report) => {
       dirtyRef.current = true
+      editSeqRef.current += 1
       setSaveState('dirty')
       if (timerRef.current) clearTimeout(timerRef.current)
       timerRef.current = setTimeout(() => void persist(next), 800)

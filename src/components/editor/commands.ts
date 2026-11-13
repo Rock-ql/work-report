@@ -1,3 +1,4 @@
+import { ChangeSet } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 
 /**
@@ -71,6 +72,133 @@ export function toggleLinePrefix(view: EditorView, prefix: string, pattern: RegE
   })
   view.dispatch({ changes })
   view.focus()
+}
+
+interface ListLineInfo {
+  indent: number
+  /** 缩进 + 标记 + 标记后空格的列数，即正文起始列 */
+  contentCol: number
+  ordered: boolean
+  number?: number
+  delim?: string
+  spacer: string
+}
+
+/** 解析列表行：返回缩进、正文列与序号信息 */
+function listLineInfo(text: string): ListLineInfo | null {
+  const m = /^(\s*)(?:([-*+])|(\d+)([.)]))(\s+)/.exec(text)
+  if (!m) return null
+  return {
+    indent: m[1].length,
+    contentCol: m[0].length,
+    ordered: m[3] !== undefined,
+    number: m[3] ? Number(m[3]) : undefined,
+    delim: m[4],
+    spacer: m[5],
+  }
+}
+
+function leadingSpaces(text: string) {
+  return /^\s*/.exec(text)?.[0].length ?? 0
+}
+
+/**
+ * 算出某个缩进层上移入项应沿用的序号：紧邻的同层有序兄弟项 + 1，没有则从 1 开始。
+ * 返回 0 表示找到的是同层无序列表项（不是同一有序列表）。
+ */
+function precedingSiblingNumber(doc: EditorView['state']['doc'], lineNumber: number, indent: number) {
+  for (let n = lineNumber - 1; n >= 1; n--) {
+    const text = doc.line(n).text
+    if (!text.trim()) continue
+    const prev = listLineInfo(text)
+    if (prev) {
+      if (prev.indent === indent) return prev.ordered ? (prev.number ?? 0) : 0
+      if (prev.indent < indent) return 0
+      continue
+    }
+    // 非列表行：只有缩进更深时才算列表项的续行
+    if (leadingSpaces(text) <= indent) break
+  }
+  return 0
+}
+
+/**
+ * Tab / Shift-Tab：列表行整行缩进、反缩进，变成真正的子项。
+ * 两个坑都得补：
+ * 1. remark 对有序列表要求缩进到父项正文列（`1. a` 下用 2 空格会被当成同级）；
+ * 2. 子列表首项必须以 1 开头，否则 CommonMark 认为它不能打断段落，`2. b` 会被并进上一段。
+ * 所以有序项挪位置时顺带重排序号。非列表行返回 false，保留 Tab 默认行为。
+ */
+export function indentList(view: EditorView, dir: 1 | -1): boolean {
+  const doc = view.state.doc
+  const firstLine = doc.lineAt(view.state.selection.main.from)
+  const info = listLineInfo(firstLine.text)
+  if (!info) return false
+
+  let target: number
+  if (dir === 1) {
+    // 向上找最近的同级或更浅层列表项，缩进到它的正文列
+    target = -1
+    for (let n = firstLine.number - 1; n >= 1; n--) {
+      const text = doc.line(n).text
+      if (!text.trim()) continue
+      const prev = listLineInfo(text)
+      if (prev) {
+        if (prev.indent <= info.indent) {
+          target = prev.contentCol
+          break
+        }
+        continue
+      }
+      // 非列表行只有缩进更深时才算列表项的续行，否则是块边界
+      if (leadingSpaces(text) <= info.indent) break
+    }
+    if (target < 0 || target <= info.indent) return false
+  } else {
+    if (info.indent === 0) return false
+    // 向上找更浅一层的列表项，反缩进到它的缩进量
+    target = 0
+    for (let n = firstLine.number - 1; n >= 1; n--) {
+      const text = doc.line(n).text
+      if (!text.trim()) continue
+      const prev = listLineInfo(text)
+      if (prev) {
+        if (prev.indent < info.indent) {
+          target = prev.indent
+          break
+        }
+        continue
+      }
+      if (leadingSpaces(text) <= info.indent) break
+    }
+  }
+
+  const delta = target - info.indent
+  if (!delta) return false
+  const movedIndent = info.indent + delta
+  // 选中多行时，同层的连续有序项依次续号
+  let counter = precedingSiblingNumber(doc, firstLine.number, movedIndent)
+  const changes = currentLines(view).flatMap((line) => {
+    if (!line.text.trim()) return []
+    const curIndent = leadingSpaces(line.text)
+    const newIndent = Math.max(0, curIndent + delta)
+    const indent = ' '.repeat(newIndent)
+    const li = listLineInfo(line.text)
+    if (li?.ordered && newIndent === movedIndent) {
+      counter += 1
+      return [{
+        from: line.from,
+        to: line.from + li.contentCol,
+        insert: `${indent}${counter}${li.delim}${li.spacer}`,
+      }]
+    }
+    return [{ from: line.from, to: line.from + curIndent, insert: indent }]
+  })
+  if (!changes.length) return false
+  const cs = ChangeSet.of(changes, doc.length)
+  view.dispatch({ changes: cs, selection: view.state.selection.map(cs, 1) })
+  view.focus()
+  return true
 }
 
 /** 有序列表 toggle：会自动重新编号 */
