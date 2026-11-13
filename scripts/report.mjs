@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs'
 import path from 'node:path'
+import { createPerformanceService } from '../server/performance.mjs'
 import {
   DATA_DIR,
   IS_SANDBOX,
@@ -35,6 +36,9 @@ const USAGE = `用法:
   node scripts/report.mjs new      --type daily  --date 2026-08-20
   node scripts/report.mjs write    --type daily  --date 2026-08-20 --patch patch.json
   node scripts/report.mjs write    --type weekly --week 2026-W34   --patch patch.json
+  node scripts/report.mjs write    --type performance --month 2026-08 --patch patch.json [--replace]
+  node scripts/report.mjs generate --type performance --month 2026-08 [--source FILE] # 仅 stdout JSON 补丁，不保存
+  node scripts/report.mjs show     --type performance --month 2026-08
   node scripts/report.mjs validate
   node scripts/report.mjs show     --type daily  --date 2026-08-20
   node scripts/report.mjs list     [--type daily|weekly]
@@ -44,6 +48,7 @@ const USAGE = `用法:
 write 的补丁字段（其余字段一律拒绝）:
   日报: todayCompleted, tomorrowPlanDev, tags, commits, workspaceIds, range
   周报: weekCompleted,  tags, commits, workspaceIds, range
+  绩效: sections（仅七项固定 key）, source, warnings；已有报告默认拒绝覆盖，需 --replace
 
   补丁也可以走 stdin:  cat patch.json | node scripts/report.mjs write --type daily --date 2026-08-20`
 
@@ -380,6 +385,18 @@ function cmdValidate(args, shared) {
     }
   }
 
+  const performanceDir = path.join(DATA_DIR, 'performance')
+  for (const name of fs.existsSync(performanceDir) ? fs.readdirSync(performanceDir).filter((f) => f.endsWith('.json')) : []) {
+    const label = `performance/${name}`
+    try {
+      const raw = readJson(path.join(performanceDir, name))
+      const parsed = shared.performanceSchema.safeParse(raw)
+      if (!shared.monthStr.safeParse(name.slice(0, -5)).success || (parsed.success && `${parsed.data.month}.json` !== name)) {
+        report(label, false, ['  -> 文件月份不合法或与报告不匹配'])
+      } else report(label, parsed.success, parsed.success ? [] : formatIssues(parsed.error))
+    } catch (e) { report(label, false, [`  -> ${e.message}`]) }
+  }
+
   console.log('')
   if (bad === 0) {
     console.log(`${c.green('全部通过')}  共校验 ${checked} 个文件`)
@@ -484,6 +501,34 @@ function cmdRestore(args) {
   return 0
 }
 
+async function cmdPerformance(cmd, args, shared) {
+  if (!shared.monthStr.safeParse(args.month).success) die('--month 必须为 YYYY-MM，例如 2026-08')
+  const month = String(args.month)
+  const service = createPerformanceService(DATA_DIR, shared)
+  try {
+    if (cmd === 'generate') {
+      if (args.source === true) die('--source 需要文件路径')
+      const body = args.source
+        ? { sourceType: 'offline', text: fs.readFileSync(String(args.source), 'utf8'), filename: String(args.source) }
+        : { sourceType: 'daily' }
+      const { sections, source, warnings } = service.generate(month, body)
+      process.stdout.write(JSON.stringify({ sections, source, warnings }, null, 2) + '\n')
+    } else if (cmd === 'write') {
+      if (args.replace !== undefined && args.replace !== true) die('--replace 必须为显式开关，不接受参数')
+      service.writePatch(month, await readPatch(args), args.replace === true)
+      console.log(`已保存 performance/${month}.json（覆盖前自动备份）`)
+    } else if (cmd === 'show') {
+      const report = service.get(month)
+      if (!report) die(`绩效不存在: performance/${month}.json`)
+      process.stdout.write(shared.performanceText(report))
+    } else die(`performance 仅支持 generate / write / show；全量检查用 validate`)
+  } catch (e) {
+    // 服务层抛的是带 status 的业务错误，统一打成一行，不喷栈给 AI 看
+    die(e?.message ?? String(e))
+  }
+  return 0
+}
+
 // ------------------------------------------------------------------ 入口
 
 async function main() {
@@ -505,6 +550,9 @@ async function main() {
 
   const shared = await loadShared()
 
+  if (args.type === 'performance' && cmd !== 'validate') {
+    process.exit(await cmdPerformance(cmd, args, shared))
+  }
   let code
   switch (cmd) {
     case 'new':

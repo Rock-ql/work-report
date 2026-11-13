@@ -2,6 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   BookOpen,
   CalendarDays,
+  ClipboardCheck,
   FolderGit2,
   Settings2,
   Sparkles,
@@ -15,6 +16,7 @@ import { Tip } from '@/components/ui/tooltip'
 
 const NAV = [
   { to: '/', label: '报告列表', icon: CalendarDays, end: true },
+  { to: '/performance', label: '月度绩效', icon: ClipboardCheck },
   { to: '/workspaces', label: 'Git 工作区', icon: FolderGit2 },
   { to: '/ai-guide', label: 'AI 使用规范', icon: Sparkles },
   { to: '/settings', label: '设置', icon: Settings2 },

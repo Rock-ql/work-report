@@ -23,6 +23,10 @@ import { excerptOf, extractTags, fillStats } from '../shared/format'
 import * as dataFs from './data-fs.mjs'
 import { DEFAULT_TIMEZONE, dateKeyInTz, nowIso, weekKeyInTz, weekRange } from '../shared/date'
 
+import * as performanceShared from '../shared/index'
+// @ts-expect-error - API 与 CLI 共用的纯 JS 服务
+import { createPerformanceService, PerformanceError } from './performance.mjs'
+
 const execFileAsync = promisify(execFile)
 
 /**
@@ -522,8 +526,8 @@ class EventHub {
 interface Ctx {
   store: DataStore
   hub: EventHub
-  /** 网页自身写入时打上标记，SSE 广播里带上，避免自己触发自己刷新 */
-  markSelfWrite: (id: string) => void
+  /** 网页自身写入完成后登记该文件（绝对路径），SSE 广播时据此过滤掉自己产生的回声 */
+  markSelfWrite: (file: string) => void
 }
 
 async function loadSettings(store: DataStore) {
@@ -609,6 +613,39 @@ async function handle(
       now: nowIso(),
     })
     return true
+  }
+
+  // --- 月度绩效（独立资源，生成不落盘）
+  if (pathname === '/api/performance' || pathname.startsWith('/api/performance/')) {
+    const service = createPerformanceService(store.dir, performanceShared)
+    try {
+      if (pathname === '/api/performance' && method === 'GET') {
+        send(res, 200, { reports: service.list() })
+        return true
+      }
+      const match = /^\/api\/performance\/([^/]+)(\/generate)?$/.exec(pathname)
+      if (!match) throw new HttpError(404, '绩效接口不存在')
+      const [, month, generate] = match
+      if (!performanceShared.monthStr.safeParse(month).success) throw new HttpError(400, '月份必须为 YYYY-MM')
+      if (generate && method === 'POST') {
+        send(res, 200, service.generate(month, await readBody(req)))
+      } else if (!generate && method === 'GET') {
+        const report = service.get(month)
+        if (!report) throw new HttpError(404, '绩效报告不存在')
+        send(res, 200, report)
+      } else if (!generate && method === 'PUT') {
+        const report = service.save(month, await readBody(req))
+        ctx.markSelfWrite(path.join(store.dir, 'performance', `${month}.json`))
+        send(res, 200, report)
+      } else throw new HttpError(405, '不支持的方法')
+      return true
+    } catch (e) {
+      if (e instanceof PerformanceError) {
+        const error = e as Error & { status: number }
+        throw new HttpError(error.status, error.message)
+      }
+      throw e
+    }
   }
 
   // --- 设置
@@ -761,7 +798,7 @@ async function handle(
       const settings = await loadSettings(store)
       const skeleton = createSkeleton(type, id, settings)
       await writeJsonAtomic(file, skeleton)
-      ctx.markSelfWrite(`${type}/${id}`)
+      ctx.markSelfWrite(file)
       send(res, 201, skeleton)
       return true
     }
@@ -798,7 +835,7 @@ async function handle(
       // tags 由正文中的【模块】自动派生，前端无需维护
       parsed.data.tags = extractTags(parsed.data)
       await writeJsonAtomic(file, parsed.data)
-      ctx.markSelfWrite(`${type}/${id}`)
+      ctx.markSelfWrite(file)
       send(res, 200, parsed.data)
       return true
     }
@@ -810,7 +847,7 @@ async function handle(
       } catch (e: any) {
         if (e?.code !== 'ENOENT') throw new HttpError(500, `删除失败: ${e.message}`)
       }
-      ctx.markSelfWrite(`${type}/${id}`)
+      ctx.markSelfWrite(file)
       send(res, 200, { ok: true })
       return true
     }
@@ -824,16 +861,52 @@ async function handle(
 export function dataApiPlugin(root: string): Plugin {
   const store = new DataStore(root)
   const hub = new EventHub()
-  const selfWrites = new Set<string>()
+  /**
+   * 网页自身写入的"回声"登记表：data/ 下的相对路径 -> 写入后的文件 mtimeMs。
+   * 只靠时间窗口不够：连续打字时每 800ms 就有一次保存和一次 fs.watch 事件，
+   * 早先那次写入的窗口一过期，后来的回声就会被误判成"外部修改"，逼用户做选择。
+   * 用 mtime 判定与事件到达早晚无关 —— 磁盘上还是我们刚写的那份，就是回声。
+   */
+  const selfWrites = new Map<string, { mtimeMs: number | null; at: number }>()
+  /** 超过这个时长仍未收到事件的登记作废，仅为防止表无限增长 */
+  const SELF_WRITE_TTL = 60_000
 
-  const ctx: Ctx = {
-    store,
-    hub,
-    markSelfWrite: (id) => {
-      selfWrites.add(id)
-      setTimeout(() => selfWrites.delete(id), 1500)
-    },
+  const relToData = (file: string) => path.relative(store.dir, file).split(path.sep).join('/')
+
+  const markSelfWrite = (file: string) => {
+    // 只登记不查的表项不会自己过期，这里顺带清一遍
+    const now = Date.now()
+    for (const [key, rec] of selfWrites) if (now - rec.at > SELF_WRITE_TTL) selfWrites.delete(key)
+    let mtimeMs: number | null = null
+    try {
+      mtimeMs = fs.statSync(file).mtimeMs
+    } catch {
+      /* 文件此刻不存在（例如刚被网页删除），记为 null */
+    }
+    selfWrites.set(relToData(file), { mtimeMs, at: now })
   }
+
+  /** 这次文件事件是不是网页自己刚写的回声 */
+  const isSelfWriteEcho = (rel: string) => {
+    const rec = selfWrites.get(rel)
+    if (!rec) return false
+    if (Date.now() - rec.at > SELF_WRITE_TTL) {
+      selfWrites.delete(rel)
+      return false
+    }
+    let mtimeMs: number | null = null
+    try {
+      mtimeMs = fs.statSync(path.join(store.dir, rel)).mtimeMs
+    } catch {
+      /* 文件不存在 */
+    }
+    if (mtimeMs === rec.mtimeMs) return true
+    // mtime 变了 → 确实有别人写过，登记作废，正常广播
+    selfWrites.delete(rel)
+    return false
+  }
+
+  const ctx: Ctx = { store, hub, markSelfWrite }
 
   let ready: Promise<void> | null = null
   const middleware: Connect.NextHandleFunction = (req, res, next) => {
@@ -863,12 +936,9 @@ export function dataApiPlugin(root: string): Plugin {
     void store.ensure().then(() => hub.watch(store.dir))
     const origin = hub.broadcast.bind(hub)
     hub.broadcast = (event, payload: any) => {
-      // 过滤掉网页自己刚写的文件，避免"保存后立刻提示被外部修改"
+      // 过滤掉网页自己刚写的文件的回声，避免"保存后立刻提示被外部修改"
       if (event === 'data-changed' && Array.isArray(payload?.files)) {
-        const files = payload.files.filter((f: string) => {
-          const hit = /reports\/(daily|weekly)\/(.+)\.json$/.exec(f)
-          return !(hit && selfWrites.has(`${hit[1]}/${hit[2]}`))
-        })
+        const files = payload.files.filter((f: string) => !isSelfWriteEcho(f))
         if (!files.length) return
         payload = { ...payload, files }
       }

@@ -205,6 +205,68 @@ export const reportSchema = z.discriminatedUnion('type', [
 export type Report = z.infer<typeof reportSchema>
 export type ReportType = Report['type']
 
+// ---------------------------------------------------------------- 月度绩效（独立于 Report 联合）
+
+export const monthStr = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, '月份必须为 YYYY-MM')
+const performanceDateStr = z.string().date('来源日期必须为有效 YYYY-MM-DD')
+const nonBlank = z.string().regex(/\S/, '不能为空或纯空白')
+
+export const performanceSectionsSchema = z.object({
+  delivery: z.string(),
+  quality: z.string(),
+  closure: z.string(),
+  performance: z.string(),
+  patents: z.string(),
+  sharing: z.string(),
+  process: z.string(),
+}).strict()
+export type PerformanceSections = z.infer<typeof performanceSectionsSchema>
+export type PerformanceKey = keyof PerformanceSections
+
+export const performanceSourceSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('daily'), label: nonBlank, text: nonBlank,
+    dates: z.array(performanceDateStr).min(1) }).strict(),
+  z.object({ type: z.literal('offline'), label: nonBlank, text: nonBlank,
+    dates: z.array(performanceDateStr).max(0) }).strict(),
+])
+export type PerformanceSource = z.infer<typeof performanceSourceSchema>
+
+export const performanceSchema = z.object({
+  schemaVersion: z.literal(1),
+  month: monthStr,
+  title: nonBlank,
+  sections: performanceSectionsSchema,
+  source: performanceSourceSchema,
+  warnings: z.array(z.string()),
+  createdAt: z.string().datetime({ offset: true }),
+  updatedAt: z.string().datetime({ offset: true }),
+}).strict().superRefine((report, ctx) => {
+  if (report.source.dates.some((date) => !date.startsWith(`${report.month}-`))) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['source', 'dates'], message: '来源日期必须属于报告月份' })
+  }
+  if (new Set(report.source.dates).size !== report.source.dates.length) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['source', 'dates'], message: '来源日期不能重复' })
+  }
+})
+export type PerformanceReport = z.infer<typeof performanceSchema>
+
+/** 首次创建须提供完整 source；替换时缺省字段沿用原值。 */
+export const performancePatchSchema = z.object({
+  sections: performanceSectionsSchema.partial().optional(),
+  source: performanceSourceSchema.optional(),
+  warnings: z.array(z.string()).optional(),
+}).strict()
+export type PerformancePatch = z.infer<typeof performancePatchSchema>
+
+export const performanceGenerateSchema = z.discriminatedUnion('sourceType', [
+  z.object({ sourceType: z.literal('daily') }).strict(),
+  z.object({ sourceType: z.literal('offline'), text: nonBlank, filename: nonBlank.optional() }).strict(),
+])
+export const performanceSaveSchema = z.object({
+  report: performanceSchema,
+  baseUpdatedAt: z.string().datetime({ offset: true }).optional(),
+}).strict()
+
 // ---------------------------------------------------------------- AI 补丁
 
 /** AI 只能提交这些字段；其余字段由 report.mjs 从磁盘现有文件继承 */

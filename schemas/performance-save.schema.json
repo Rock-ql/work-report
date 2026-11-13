@@ -1,0 +1,166 @@
+{
+  "$ref": "#/definitions/performanceSaveSchema",
+  "definitions": {
+    "performanceSaveSchema": {
+      "type": "object",
+      "properties": {
+        "report": {
+          "type": "object",
+          "properties": {
+            "schemaVersion": {
+              "type": "number",
+              "const": 1
+            },
+            "month": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            },
+            "title": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "sections": {
+              "type": "object",
+              "properties": {
+                "delivery": {
+                  "type": "string"
+                },
+                "quality": {
+                  "type": "string"
+                },
+                "closure": {
+                  "type": "string"
+                },
+                "performance": {
+                  "type": "string"
+                },
+                "patents": {
+                  "type": "string"
+                },
+                "sharing": {
+                  "type": "string"
+                },
+                "process": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "delivery",
+                "quality",
+                "closure",
+                "performance",
+                "patents",
+                "sharing",
+                "process"
+              ],
+              "additionalProperties": false
+            },
+            "source": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "daily"
+                    },
+                    "label": {
+                      "type": "string",
+                      "pattern": "\\S"
+                    },
+                    "text": {
+                      "type": "string",
+                      "pattern": "\\S"
+                    },
+                    "dates": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      "minItems": 1
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "label",
+                    "text",
+                    "dates"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "offline"
+                    },
+                    "label": {
+                      "type": "string",
+                      "pattern": "\\S"
+                    },
+                    "text": {
+                      "type": "string",
+                      "pattern": "\\S"
+                    },
+                    "dates": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      "maxItems": 0
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "label",
+                    "text",
+                    "dates"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "month",
+            "title",
+            "sections",
+            "source",
+            "warnings",
+            "createdAt",
+            "updatedAt"
+          ],
+          "additionalProperties": false
+        },
+        "baseUpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "report"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "绩效保存请求，已有文档必须带 baseUpdatedAt"
+}

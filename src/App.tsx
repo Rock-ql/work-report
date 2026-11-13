@@ -10,6 +10,7 @@ import ReportDetail from '@/pages/ReportDetail'
 import Workspaces from '@/pages/Workspaces'
 import AiGuide from '@/pages/AiGuide'
 import Settings from '@/pages/Settings'
+import Performance from '@/pages/Performance'
 
 /**
  * 沙箱横幅：运行在 WR_DATA_DIR 指定的临时目录时常驻顶部。
@@ -41,6 +42,7 @@ function Shell() {
           <Routes>
             <Route path="/" element={<ReportList />} />
             <Route path="/report/:type/:id" element={<ReportDetail />} />
+            <Route path="/performance" element={<Performance />} />
             <Route path="/workspaces" element={<Workspaces />} />
             <Route path="/ai-guide" element={<AiGuide />} />
             <Route path="/settings" element={<Settings />} />

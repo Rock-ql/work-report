@@ -1,5 +1,6 @@
 import type {
   Report,
+  PerformanceReport,
   ReportMeta,
   ReportType,
   Settings,
@@ -55,6 +56,17 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 // ---------------------------------------------------------------- settings
 
 export const api = {
+  listPerformance: () => request<{ reports: PerformanceReport[] }>('/api/performance'),
+  getPerformance: (month: string) =>
+    request<PerformanceReport>(`/api/performance/${encodeURIComponent(month)}`),
+  generatePerformance: (month: string, source: { sourceType: 'daily' | 'offline'; text?: string; filename?: string }) =>
+    request<PerformanceReport>(`/api/performance/${encodeURIComponent(month)}/generate`, {
+      method: 'POST', body: JSON.stringify(source),
+    }),
+  savePerformance: (report: PerformanceReport, baseUpdatedAt?: string) =>
+    request<PerformanceReport>(`/api/performance/${encodeURIComponent(report.month)}`, {
+      method: 'PUT', body: JSON.stringify({ report, baseUpdatedAt }),
+    }),
   health: () =>
     request<{ ok: boolean; dataDir: string; sandbox: boolean; backups: number; now: string }>(
       '/api/health',

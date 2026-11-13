@@ -13,6 +13,10 @@ import { SCHEMA_DIR, c, loadShared } from './_shared.mjs'
  */
 
 const TARGETS = [
+  ['performance', 'performanceSchema', '独立月度绩效 data/performance/YYYY-MM.json'],
+  ['performance-patch', 'performancePatchSchema', '绩效 CLI 白名单补丁；已有报告需 --replace'],
+  ['performance-generate', 'performanceGenerateSchema', '绩效生成请求，规则抽取且不保存'],
+  ['performance-save', 'performanceSaveSchema', '绩效保存请求，已有文档必须带 baseUpdatedAt'],
   ['daily-report', 'dailyReportSchema', '日报文件 data/reports/daily/YYYY-MM-DD.json 的结构'],
   ['weekly-report', 'weeklyReportSchema', '周报文件 data/reports/weekly/YYYY-Www.json 的结构'],
   ['workspaces', 'workspacesFileSchema', 'data/workspaces.json 的结构'],
